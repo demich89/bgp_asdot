@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>BGP ASN Converter (ASDOT ⇆ ASPLAIN)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.5;
+      color-scheme: light dark;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      display: flex;
+      min-height: 100vh;
+      justify-content: center;
+      align-items: center;
+      background: #0f172a;
+      color: #e5e7eb;
+    }
+    .card {
+      background: #020617;
+      border-radius: 1rem;
+      padding: 1.75rem;
+      max-width: 480px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+    }
+    h1 {
+      font-size: 1.4rem;
+      margin: 0 0 0.75rem;
+      text-align: center;
+    }
+    p {
+      font-size: 0.9rem;
+      color: #9ca3af;
+      margin-top: 0;
+      margin-bottom: 1rem;
+      text-align: center;
+    }
+    label {
+      font-size: 0.85rem;
+      display: block;
+      margin-bottom: 0.4rem;
+      color: #cbd5f5;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 0.55rem 0.7rem;
+      border-radius: 0.5rem;
+      border: 1px solid #4b5563;
+      background: #020617;
+      color: #e5e7eb;
+      font-size: 0.95rem;
+      box-sizing: border-box;
+    }
+    input[type="text"]:focus {
+      outline: none;
+      border-color: #38bdf8;
+      box-shadow: 0 0 0 1px #38bdf8;
+    }
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-top: 0.75rem;
+    }
+    .col {
+      flex: 1 1 0;
+      min-width: 0;
+    }
+    .output-box {
+      min-height: 2.2rem;
+      border-radius: 0.5rem;
+      border: 1px dashed #4b5563;
+      padding: 0.55rem 0.7rem;
+      font-size: 0.95rem;
+      background: #020617;
+      box-sizing: border-box;
+      word-break: break-all;
+    }
+    .buttons {
+      display: flex;
+      gap: 0.75rem;
+      margin-top: 0.8rem;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    button {
+      border-radius: 999px;
+      border: none;
+      padding: 0.45rem 0.9rem;
+      font-size: 0.85rem;
+      cursor: pointer;
+      background: #38bdf8;
+      color: #0f172a;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    button.secondary {
+      background: transparent;
+      color: #e5e7eb;
+      border: 1px solid #4b5563;
+    }
+    button:hover {
+      filter: brightness(1.05);
+    }
+    .note {
+      font-size: 0.75rem;
+      color: #6b7280;
+      margin-top: 0.75rem;
+      text-align: center;
+    }
+    .error {
+      margin-top: 0.4rem;
+      font-size: 0.8rem;
+      color: #f97373;
+      min-height: 1em;
+      text-align: center;
+    }
+    @media (max-width: 480px) {
+      .card {
+        border-radius: 0;
+        height: 100vh;
+        max-width: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>BGP ASN Converter</h1>
+    <p>Convert between ASDOT (e.g. <code>1.10</code>) and ASPLAIN / long ASN (e.g. <code>65546</code>).</p>
+
+    <label for="input-asn">Input ASN (ASDOT or ASPLAIN)</label>
+    <input id="input-asn" type="text" placeholder="Example: 1.10 or 65546" />
+
+    <div class="buttons">
+      <button id="btn-detect">🔀 Auto-detect &amp; convert</button>
+      <button id="btn-to-long" class="secondary">➡️ To ASPLAIN</button>
+      <button id="btn-to-dot" class="secondary">⬅️ To ASDOT</button>
+    </div>
+
+    <div class="row">
+      <div class="col">
+        <label>ASDOT (x.y)</label>
+        <div id="output-dot" class="output-box"></div>
+      </div>
+      <div class="col">
+        <label>ASPLAIN / Long</label>
+        <div id="output-long" class="output-box"></div>
+      </div>
+    </div>
+
+    <div id="error" class="error"></div>
+
+    <div class="note">
+      Range: 0 – 4,294,967,295 (32-bit)<br/>
+      ASDOT: high.low, each 0 – 65,535 (ASN = high × 65536 + low)
+    </div>
+  </div>
+
+  <script>
+    const input = document.getElementById("input-asn");
+    const outDot = document.getElementById("output-dot");
+    const outLong = document.getElementById("output-long");
+    const errBox = document.getElementById("error");
+
+    const MAX_32BIT = 4294967295;
+    const MAX_16BIT = 65535;
+
+    function clearOutputs() {
+      outDot.textContent = "";
+      outLong.textContent = "";
+      errBox.textContent = "";
+    }
+
+    function showError(msg) {
+      errBox.textContent = msg;
+    }
+
+    function parseAsplain(str) {
+      if (!/^[0-9]+$/.test(str)) return null;
+      const n = Number(str);
+      if (!Number.isFinite(n) || n < 0 || n > MAX_32BIT) return null;
+      return n;
+    }
+
+    function parseAsdot(str) {
+      const parts = str.split(".");
+      if (parts.length !== 2) return null;
+      if (!/^[0-9]+$/.test(parts[0]) || !/^[0-9]+$/.test(parts[1])) return null;
+      const hi = Number(parts[0]);
+      const lo = Number(parts[1]);
+      if (!Number.isFinite(hi) || !Number.isFinite(lo)) return null;
+      if (hi < 0 || hi > MAX_16BIT || lo < 0 || lo > MAX_16BIT) return null;
+      const asplain = hi * 65536 + lo;
+      if (asplain < 0 || asplain > MAX_32BIT) return null;
+      return { hi, lo, asplain };
+    }
+
+    function convertToLong(str) {
+      clearOutputs();
+      const parsed = parseAsdot(str);
+      if (!parsed) {
+        showError("Input is not valid ASDOT (x.y).");
+        return;
+      }
+      const { hi, lo, asplain } = parsed;
+      outDot.textContent = hi + "." + lo;
+      outLong.textContent = String(asplain);
+    }
+
+    function convertToDot(str) {
+      clearOutputs();
+      const n = parseAsplain(str);
+      if (n === null) {
+        showError("Input is not a valid 32-bit ASPLAIN number.");
+        return;
+      }
+      const hi = Math.floor(n / 65536);
+      const lo = n % 65536;
+      if (hi < 0 || hi > MAX_16BIT || lo < 0 || lo > MAX_16BIT) {
+        showError("Cannot represent this ASN in ASDOT (x.y).");
+        return;
+      }
+      outDot.textContent = hi + "." + lo;
+      outLong.textContent = String(n);
+    }
+
+    function autoDetect(str) {
+      clearOutputs();
+      const trimmed = str.trim();
+      if (!trimmed) {
+        showError("Please enter an ASN first.");
+        return;
+      }
+      if (trimmed.includes(".")) {
+        // Looks like ASDOT
+        const parsed = parseAsdot(trimmed);
+        if (!parsed) {
+          showError("Invalid ASDOT format. Expected x.y with 0–65535 each.");
+          return;
+        }
+        const { hi, lo, asplain } = parsed;
+        outDot.textContent = hi + "." + lo;
+        outLong.textContent = String(asplain);
+      } else {
+        // Try ASPLAIN
+        const n = parseAsplain(trimmed);
+        if (n === null) {
+          showError("Invalid ASPLAIN number. Expect 0–4294967295.");
+          return;
+        }
+        const hi = Math.floor(n / 65536);
+        const lo = n % 65536;
+        if (hi < 0 || hi > MAX_16BIT || lo < 0 || lo > MAX_16BIT) {
+          showError("Cannot represent this ASN in ASDOT (x.y).");
+          return;
+        }
+        outDot.textContent = hi + "." + lo;
+        outLong.textContent = String(n);
+      }
+    }
+
+    document.getElementById("btn-detect").addEventListener("click", () => {
+      autoDetect(input.value);
+    });
+
+    document.getElementById("btn-to-long").addEventListener("click", () => {
+      convertToLong(input.value.trim());
+    });
+
+    document.getElementById("btn-to-dot").addEventListener("click", () => {
+      convertToDot(input.value.trim());
+    });
+
+    // Enter key = auto detect
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        autoDetect(input.value);
+      }
+    });
+  </script>
+</body>
+</html>
