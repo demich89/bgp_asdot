@@ -5,10 +5,24 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>BGP ASN Converter</title>
 <style>
+
+/* ---------- THEME VARIABLES ---------- */
+:root {
+    --bg: #ffffff;
+    --fg: #000000;
+    --box: #f4f4f4;
+}
+.dark {
+    --bg: #111111;
+    --fg: #eeeeee;
+    --box: #222222;
+}
+
+/* ---------- UI MAIN ---------- */
 body {
     font-family: monospace;
-    background: #111;
-    color: #eee;
+    background: var(--bg);
+    color: var(--fg);
     margin: 0;
     padding: 0;
 }
@@ -31,8 +45,8 @@ input[type="text"] {
     margin-top: 6px;
     border-radius: 6px;
     border: 1px solid #444;
-    background: #222;
-    color: #eee;
+    background: var(--box);
+    color: var(--fg);
 }
 
 button {
@@ -60,7 +74,7 @@ button:hover {
     font-size: 20px;
 }
 .historyItem {
-    background: #1a1a1a;
+    background: var(--box);
     padding: 10px;
     margin-top: 6px;
     border-radius: 5px;
@@ -69,7 +83,7 @@ button:hover {
     border: 1px solid #333;
 }
 .historyItem:hover {
-    background: #333;
+    background: #5555;
 }
 
 #clearHistory {
@@ -85,10 +99,36 @@ button:hover {
 #clearHistory:hover {
     background: #666;
 }
+
+/* ---------- THEME BUTTON ---------- */
+#theme-toggle {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: none;
+    border: none;
+    cursor: pointer;
+    margin-bottom: 20px;
+}
+
+#moon, #sun {
+    stroke: var(--fg);
+}
+
+#sun { display: none; }
 </style>
 </head>
 <body>
+
 <div id="container">
+
+<!-- LIGHT/DARK TOGGLE -->
+<div class="text-center">
+    <button id="theme-toggle">
+        <svg id="moon" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentcolor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"></path></svg>
+        <svg id="sun"  xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentcolor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+    </button>
+</div>
 
 <h3>BGP ASN Converter (ASDOT ⇆ ASPLAIN)</h3>
 
@@ -113,10 +153,7 @@ function loadHistory() {
     for (let item of h.slice().reverse()) {
         let el = document.createElement("div");
         el.className = "historyItem";
-
-        el.textContent =
-            `Input: ${item.input}   |   ASDOT: ${item.dot}   |   ASPLAIN: ${item.long}`;
-
+        el.textContent = `Input: ${item.input} | ASDOT: ${item.dot} | ASPLAIN: ${item.long}`;
         el.onclick = () => {
             document.getElementById("asn").value = item.input;
             convert();
@@ -127,11 +164,8 @@ function loadHistory() {
 
 function saveHistory(input, dot, long) {
     let h = JSON.parse(localStorage.getItem("asn_history") || "[]");
-
     h.push({input, dot, long});
-
-    if (h.length > 50) h.shift(); // keep last 50
-
+    if (h.length > 50) h.shift();
     localStorage.setItem("asn_history", JSON.stringify(h));
 }
 
@@ -142,20 +176,17 @@ function convert() {
 
     dot.textContent = "";
     long.textContent = "";
-
     if (!input) return;
 
     let dotVal;
     let longVal;
 
     if (input.includes(".")) {
-        // ASDOT -> ASPLAIN
         const [hi, lo] = input.split(".");
         const n = Number(hi) * 65536 + Number(lo);
         dotVal = input;
         longVal = n;
     } else {
-        // ASPLAIN -> ASDOT
         const n = Number(input);
         const hi = Math.floor(n / 65536);
         const lo = n % 65536;
@@ -174,6 +205,32 @@ function clearHistory() {
     localStorage.removeItem("asn_history");
     loadHistory();
 }
+
+// THEME SWITCH
+const themeBtn = document.getElementById("theme-toggle");
+const sun = document.getElementById("sun");
+const moon = document.getElementById("moon");
+
+function setTheme(mode) {
+    if (mode === "dark") {
+        document.body.classList.add("dark");
+        moon.style.display = "none";
+        sun.style.display = "block";
+    } else {
+        document.body.classList.remove("dark");
+        moon.style.display = "block";
+        sun.style.display = "none";
+    }
+    localStorage.setItem("asn_theme", mode);
+}
+
+themeBtn.onclick = () => {
+    const newTheme = document.body.classList.contains("dark") ? "light" : "dark";
+    setTheme(newTheme);
+};
+
+// load theme on startup
+setTheme(localStorage.getItem("asn_theme") || "dark");
 
 // load history at startup
 loadHistory();
