@@ -2,19 +2,139 @@
 <html>
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>BGP ASN Converter</title>
+<style>
+body {
+    font-family: monospace;
+    background: #111;
+    color: #eee;
+    margin: 0;
+    padding: 0;
+}
+#container {
+    max-width: 600px;
+    margin: auto;
+    padding: 16px;
+}
+
+h3 {
+    text-align: center;
+    margin-bottom: 20px;
+    font-size: 22px;
+}
+
+input[type="text"] {
+    width: 100%;
+    font-size: 20px;
+    padding: 10px;
+    margin-top: 6px;
+    border-radius: 6px;
+    border: 1px solid #444;
+    background: #222;
+    color: #eee;
+}
+
+button {
+    width: 100%;
+    padding: 12px;
+    margin-top: 14px;
+    font-size: 20px;
+    border: none;
+    border-radius: 6px;
+    background: #2979ff;
+    color: white;
+    cursor: pointer;
+}
+button:hover {
+    background: #1c54b2;
+}
+
+.result {
+    margin-top: 14px;
+    font-size: 20px;
+}
+
+#historyTitle {
+    margin-top: 30px;
+    font-size: 20px;
+}
+.historyItem {
+    background: #1a1a1a;
+    padding: 10px;
+    margin-top: 6px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 17px;
+    border: 1px solid #333;
+}
+.historyItem:hover {
+    background: #333;
+}
+
+#clearHistory {
+    margin-top: 12px;
+    width: 100%;
+    padding: 10px;
+    font-size: 18px;
+    border: none;
+    border-radius: 6px;
+    background: #444;
+    color: #eee;
+}
+#clearHistory:hover {
+    background: #666;
+}
+</style>
 </head>
 <body>
+<div id="container">
 
 <h3>BGP ASN Converter (ASDOT ⇆ ASPLAIN)</h3>
 
-<input id="asn" type="text" placeholder="Enter ASN (e.g. 1.10 or 65546)" size="30">
+<input id="asn" type="text" placeholder="Enter ASN (e.g. 1.10 or 65546)">
 <button onclick="convert()">Convert</button>
 
-<p>ASDOT: <span id="outdot"></span></p>
-<p>ASPLAIN: <span id="outlong"></span></p>
+<p class="result">ASDOT: <span id="outdot"></span></p>
+<p class="result">ASPLAIN: <span id="outlong"></span></p>
+
+<p id="historyTitle">History</p>
+<div id="history"></div>
+<button id="clearHistory" onclick="clearHistory()">Clear history</button>
+
+</div>
 
 <script>
+function loadHistory() {
+    let h = JSON.parse(localStorage.getItem("asn_history") || "[]");
+    let div = document.getElementById("history");
+    div.innerHTML = "";
+
+    for (let item of h.slice().reverse()) {
+        let el = document.createElement("div");
+        el.className = "historyItem";
+
+        el.textContent =
+            `Input: ${item.input}   |   ASDOT: ${item.dot}   |   ASPLAIN: ${item.long}`;
+
+        el.onclick = () => {
+            document.getElementById("asn").value = item.input;
+            convert();
+        }
+        div.appendChild(el);
+    }
+}
+
+function saveHistory(input, dot, long) {
+    let h = JSON.parse(localStorage.getItem("asn_history") || "[]");
+
+    h.push({input, dot, long});
+
+    if (h.length > 50) h.shift(); // keep last 50
+
+    localStorage.setItem("asn_history", JSON.stringify(h));
+}
+
 function convert() {
     const input = document.getElementById("asn").value.trim();
     const dot = document.getElementById("outdot");
@@ -23,21 +143,40 @@ function convert() {
     dot.textContent = "";
     long.textContent = "";
 
+    if (!input) return;
+
+    let dotVal;
+    let longVal;
+
     if (input.includes(".")) {
         // ASDOT -> ASPLAIN
         const [hi, lo] = input.split(".");
         const n = Number(hi) * 65536 + Number(lo);
-        dot.textContent = input;
-        long.textContent = n;
+        dotVal = input;
+        longVal = n;
     } else {
         // ASPLAIN -> ASDOT
         const n = Number(input);
         const hi = Math.floor(n / 65536);
         const lo = n % 65536;
-        dot.textContent = hi + "." + lo;
-        long.textContent = n;
+        dotVal = hi + "." + lo;
+        longVal = n;
     }
+
+    dot.textContent = dotVal;
+    long.textContent = longVal;
+
+    saveHistory(input, dotVal, longVal);
+    loadHistory();
 }
+
+function clearHistory() {
+    localStorage.removeItem("asn_history");
+    loadHistory();
+}
+
+// load history at startup
+loadHistory();
 </script>
 
 </body>
