@@ -121,6 +121,46 @@ button:hover {
 
 <h3>BGP ASN Converter (ASDOT ⇆ ASPLAIN)</h3>
 
+<details style="background:var(--box);padding:10px;border-radius:6px;border:1px solid #333;margin-bottom:14px">
+    <summary><b>How the conversion works (with example)</b></summary>
+
+    <p><b>Example input:</b> 1.10</p>
+
+    <p><u>Step 1 — Split the two parts</u><br>
+    High = 1<br>
+    Low = 10</p>
+
+    <p><u>Step 2 — Apply the formula</u><br>
+    ASPLAIN = (High × 65536) + Low<br>
+    ASPLAIN = (1 × 65536) + 10<br>
+    ASPLAIN = <b>65546</b></p>
+
+    <hr>
+
+    <p><b>Reverse conversion example:</b> 65546</p>
+
+    <p><u>Step 1 — Find the High value</u><br>
+    High = floor(65546 / 65536) = 1</p>
+    <small><i>floor() means always round down to the nearest integer</i>
+    <p>example 10/3 = 3 <br>
+    example 7/4 = 1 <br>
+    example 5/2 = 2 <br>
+    </small></p>
+
+
+    
+    <p><u>Step 2 — Find the Low value</u><br>
+    Low = 65546 mod 65536 = 10</p>
+    <small><i>mod means the remainder after division</i>
+    <p>example 10 mod 3 = 1 (3 goes into 10 three times, remainder 1)<br>
+    example 7 mod 4 = 3 (4 goes into 7 once, remainder 3)<br>
+    example 5 mod 2 = 1 (2 goes into 5 twice, remainder 1)<br>
+    </small></p>
+
+    <p><u>Result</u><br>
+    ASDOT = 1.10</p>
+</details>
+
 <input id="asn" type="text" placeholder="Enter ASN (e.g. 1.10 or 65546)">
 <button onclick="convert()">Convert</button>
 
